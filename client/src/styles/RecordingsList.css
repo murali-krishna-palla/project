@@ -1,0 +1,91 @@
+/* Recordings List Styles */
+.recordings-list {
+  margin: 20px 0;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.recordings-list h3 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.recordings-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recording-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: #f9f9f9;
+  border-radius: 6px;
+  border-left: 3px solid #667eea;
+}
+
+.recording-content {
+  flex: 1;
+}
+
+.recording-content p {
+  margin: 0 0 5px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #333;
+}
+
+.recording-content .original {
+  font-weight: 500;
+  color: #333;
+}
+
+.recording-content .processed {
+  color: #4caf50;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.recording-content small {
+  font-size: 11px;
+  color: #999;
+}
+
+.delete-btn {
+  margin-left: 10px;
+  padding: 6px 10px;
+  background: #ff6b6b;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.3s ease;
+}
+
+.delete-btn:hover {
+  background: #ff5252;
+}
+
+.no-recordings {
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  padding: 20px;
+}
+
+.error-message {
+  padding: 10px;
+  background: #ffebee;
+  color: #c62828;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}

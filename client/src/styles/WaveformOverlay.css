@@ -1,0 +1,48 @@
+/* Waveform Overlay Styles */
+.waveform-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 18px;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 26px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.waveform-overlay.active {
+  opacity: 1;
+}
+
+.waveform-overlay .bar {
+  width: 4px;
+  height: 6px;
+  background: white;
+  border-radius: 2px;
+}
+
+.waveform-overlay .bar-1 {
+  animation: wave 0.5s ease-in-out infinite;
+}
+
+.waveform-overlay .bar-2 {
+  animation: wave 0.5s ease-in-out infinite 0.08s;
+}
+
+.waveform-overlay .bar-3 {
+  animation: wave 0.5s ease-in-out infinite 0.16s;
+}
+
+.waveform-overlay .bar-4 {
+  animation: wave 0.5s ease-in-out infinite 0.24s;
+}
+
+@keyframes wave {
+  0%, 100% {
+    height: 6px;
+  }
+  50% {
+    height: 28px;
+  }
+}
