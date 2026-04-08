@@ -1,25 +1,43 @@
-/* Waveform Overlay Styles */
+/* Waveform Overlay Styles - Real-time Audio Visualization */
 .waveform-overlay {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
   padding: 10px 18px;
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(0, 255, 0, 0.3);
   border-radius: 26px;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.2s ease;
+  transform: scale(0.95);
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.1);
 }
 
 .waveform-overlay.active {
   opacity: 1;
+  transform: scale(1);
+  box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
 }
 
+/* Real-time Canvas Waveform */
+.waveform-canvas {
+  width: 200px;
+  height: 60px;
+  flex: 1;
+  display: block;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+/* Animated Bar Fallback */
 .waveform-overlay .bar {
   width: 4px;
   height: 6px;
-  background: white;
+  background: linear-gradient(to top, #00ff00, #00aa00);
   border-radius: 2px;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
 }
 
 .waveform-overlay .bar-1 {
@@ -38,11 +56,63 @@
   animation: wave 0.5s ease-in-out infinite 0.24s;
 }
 
+.waveform-overlay .bar-5 {
+  animation: wave 0.5s ease-in-out infinite 0.32s;
+}
+
+.waveform-overlay .bar-6 {
+  animation: wave 0.5s ease-in-out infinite 0.40s;
+}
+
 @keyframes wave {
   0%, 100% {
     height: 6px;
+    opacity: 0.6;
   }
   50% {
     height: 28px;
+    opacity: 1;
+  }
+}
+
+/* Recording Status Indicator */
+.waveform-overlay::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: #ff0000;
+  border-radius: 50%;
+  margin-right: 8px;
+  animation: pulse 1s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+  .waveform-overlay .bar {
+    width: 3px;
+    height: 4px;
+  }
+
+  .waveform-canvas {
+    width: 120px;
+    height: 40px;
+  }
+
+  .waveform-overlay {
+    padding: 8px 14px;
   }
 }

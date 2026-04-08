@@ -51,32 +51,7 @@
   height: 6px;
   background: white;
   border-radius: 2px;
-  animation: wave 0.5s ease-in-out infinite;
-}
-
-.bar:nth-child(1) {
-  animation-delay: 0s;
-}
-
-.bar:nth-child(2) {
-  animation-delay: 0.08s;
-}
-
-.bar:nth-child(3) {
-  animation-delay: 0.16s;
-}
-
-.bar:nth-child(4) {
-  animation-delay: 0.24s;
-}
-
-@keyframes wave {
-  0%, 100% {
-    height: 6px;
-  }
-  50% {
-    height: 28px;
-  }
+  transition: height 0.08s ease-out;
 }
 
 .stop-button {
@@ -112,6 +87,20 @@
   left: 50%;
   transform: translateX(-50%);
   background: rgba(100, 150, 255, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.testing-status {
+  position: absolute;
+  bottom: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(60, 60, 60, 0.9);
   color: white;
   padding: 8px 16px;
   border-radius: 6px;

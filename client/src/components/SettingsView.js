@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import SettingsAPIService from '../services/settingsAPI';
+import { HOTKEY_OPTIONS, CODE_MIX_LANGUAGES } from '../config/constants';
 import '../styles/SettingsView.css';
 
 /**
@@ -34,12 +35,39 @@ const SettingsView = ({
   const [isFetchingGroqBalance, setIsFetchingGroqBalance] = useState(false);
   const [deepgramBalanceError, setDeepgramBalanceError] = useState('');
   const [groqBalanceError, setGroqBalanceError] = useState('');
+  const [microphoneDevices, setMicrophoneDevices] = useState([]);
+  const [isLoadingDevices, setIsLoadingDevices] = useState(false);
+  const [deviceError, setDeviceError] = useState('');
 
   // Sync inputs with settings when they change
   useEffect(() => {
     setApiKeyInput(settings?.deepgramApiKey || '');
     setGroqKeyInput(settings?.groqApiKey || '');
   }, [settings]);
+
+  const loadMicrophoneDevices = async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      setDeviceError('Device selection not supported in this browser.');
+      return;
+    }
+
+    setIsLoadingDevices(true);
+    setDeviceError('');
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const mics = devices.filter((device) => device.kind === 'audioinput');
+      setMicrophoneDevices(mics);
+    } catch (err) {
+      setDeviceError('Failed to load devices. Allow microphone permission and try again.');
+    } finally {
+      setIsLoadingDevices(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMicrophoneDevices();
+  }, []);
 
   // Save Deepgram API Key
   const handleSaveDeepgramKey = async () => {
@@ -53,7 +81,8 @@ const SettingsView = ({
       setSaveStatus('✓ Saved!');
       setTimeout(() => setSaveStatus(''), 2000);
     } catch (err) {
-      setSaveStatus('❌ Failed to save');
+      console.error('Failed to save Deepgram API key:', err);
+      setSaveStatus('❌ ' + (err.message || 'Failed to save'));
     }
   };
 
@@ -69,7 +98,8 @@ const SettingsView = ({
       setGroqSaveStatus('✓ Saved!');
       setTimeout(() => setGroqSaveStatus(''), 2000);
     } catch (err) {
-      setGroqSaveStatus('❌ Failed to save');
+      console.error('Failed to save Groq API key:', err);
+      setGroqSaveStatus('❌ ' + (err.message || 'Failed to save'));
     }
   };
 
@@ -520,12 +550,11 @@ const SettingsView = ({
                 value={settings?.processingOptions?.codeMixLanguage || 'Hinglish'}
                 onChange={(e) => handleUpdateProcessingOptions({ codeMixLanguage: e.target.value })}
               >
-                <option value="Hinglish">Hinglish (Hindi + English)</option>
-                <option value="Tanglish">Tanglish (Tamil + English)</option>
-                <option value="Benglish">Benglish (Bengali + English)</option>
-                <option value="Kanglish">Kanglish (Kannada + English)</option>
-                <option value="Spanglish">Spanglish (Spanish + English)</option>
-                <option value="Franglais">Franglais (French + English)</option>
+                {Object.entries(CODE_MIX_LANGUAGES).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {key} ({label})
+                  </option>
+                ))}
               </select>
             </div>
           )}
@@ -555,6 +584,79 @@ const SettingsView = ({
               </select>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* ===== HOTKEY & RECORDING FLOW ===== */}
+      <section className="settings-section">
+        <h3>Hotkey & Recording</h3>
+
+        <div className="form-group">
+          <label>Recording Hotkey</label>
+          <select
+            value={settings?.hotkey || 'rightOption'}
+            onChange={async (e) => {
+              const updated = await SettingsAPIService.updateSettings(userId, {
+                ...settings,
+                hotkey: e.target.value
+              });
+              onSettingsUpdate(updated);
+            }}
+          >
+            {HOTKEY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="checkbox-group">
+          <input
+            type="checkbox"
+            id="micTest"
+            checked={settings?.micTestEnabled ?? true}
+            onChange={async (e) => {
+              const updated = await SettingsAPIService.updateSettings(userId, {
+                ...settings,
+                micTestEnabled: e.target.checked
+              });
+              onSettingsUpdate(updated);
+            }}
+          />
+          <label htmlFor="micTest">Run microphone test before recording</label>
+        </div>
+
+        <div className="form-group">
+          <label>Microphone Device</label>
+          <div className="device-row">
+            <select
+              value={settings?.microphoneDeviceId || ''}
+              onChange={async (e) => {
+                const updated = await SettingsAPIService.updateSettings(userId, {
+                  ...settings,
+                  microphoneDeviceId: e.target.value
+                });
+                onSettingsUpdate(updated);
+              }}
+            >
+              <option value="">Default microphone</option>
+              {microphoneDevices.map((device) => (
+                <option key={device.deviceId} value={device.deviceId}>
+                  {device.label || `Microphone (${device.deviceId.slice(0, 6)}...)`}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="fetch-models-btn"
+              onClick={loadMicrophoneDevices}
+              disabled={isLoadingDevices}
+            >
+              {isLoadingDevices ? '⏳' : '↻'}
+            </button>
+          </div>
+          {deviceError && <div className="error-message">{deviceError}</div>}
         </div>
       </section>
 

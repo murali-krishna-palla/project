@@ -2,96 +2,162 @@ import { useState, useCallback, useRef } from 'react';
 import { AUDIO_CONFIG } from '../config/constants';
 import AudioStreamService from '../services/audioStream';
 import AudioMuterService from '../services/audioMuter';
+import AudioResampler from '../utils/audioResampler';
 
 /**
  * Business Logic Layer - Hook for Audio Recording
  */
 export const useAudioRecorder = (onTranscript) => {
+  const DEBUG = false;
+  const debugLog = (...args) => {
+    if (DEBUG) {
+      console.log(...args);
+    }
+  };
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState(null);
+  const [audioLevel, setAudioLevel] = useState(0);
 
   const mediaStreamRef = useRef(null);
   const audioContextRef = useRef(null);
   const processorRef = useRef(null);
   const gainNodeRef = useRef(null);
   const streamServiceRef = useRef(new AudioStreamService());
+  const resamplerRef = useRef(null);  // Add resampler reference
   const startTimeRef = useRef(Date.now());
   const transcriptReceivedRef = useRef(false);  // Track if we got response from Deepgram
   const isStoppingRef = useRef(false);  // Flag to stop processing audio chunks
+  const lastLevelUpdateRef = useRef(0);
 
-  const startRecording = useCallback(async (apiKey, model, language) => {
+  const startRecording = useCallback(async (apiKey, model, language, options = {}) => {
     try {
+      debugLog('\n🎙️ ===== AUDIO RECORDING START =====');
       setError(null);
       setIsRecording(true);
+      setAudioLevel(0);
       startTimeRef.current = Date.now();
+      isStoppingRef.current = false;
 
-      // Request microphone access
-      console.log('🎤 Requesting microphone access...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
+      // Request microphone access with optional device selection
+      debugLog('🎤 Requesting microphone access...');
+      let stream;
+      try {
+        // Try basic request first
+        const audioConstraints = options.deviceId
+          ? { deviceId: { exact: options.deviceId } }
+          : true;
+        stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+        debugLog('✓ Got initial stream for microphone test');
+      } catch (err) {
+        console.error('❌ Basic audio request failed:', err.message);
+        throw new Error('Failed to get microphone access: ' + err.message);
+      }
       
       // Check if microphone is actually active
       const audioTracks = stream.getAudioTracks();
       if (audioTracks.length === 0) {
         throw new Error('❌ No audio tracks available - check microphone connection');
       }
-      console.log(`✓ Microphone obtained - ${audioTracks.length} audio track(s)`);
-      console.log(`  Track enabled: ${audioTracks[0].enabled}`);
-      console.log(`  Track state: ${audioTracks[0].readyState}`);
-      console.log(`  Device ID: ${audioTracks[0].getSettings?.()?.deviceId ?? 'unknown'}`);
+      debugLog(`✓ Microphone obtained - ${audioTracks.length} audio track(s)`);
+      debugLog(`  Track enabled: ${audioTracks[0].enabled}`);
+      debugLog(`  Track state: ${audioTracks[0].readyState}`);
+      const settings = audioTracks[0].getSettings?.();
+      if (settings) {
+        debugLog(`  🎙️ Settings - Sample rate: ${settings.sampleRate}Hz, Channel count: ${settings.channelCount}`);
+      }
 
-      // TEST MICROPHONE: Check if it's actually capturing audio
-      console.log('🔍 Testing microphone for audio capture...');
-      const testContext = new (window.AudioContext || window.webkitAudioContext)();
-      const testSource = testContext.createMediaStreamSource(stream);
-      const testAnalyser = testContext.createAnalyser();
-      testAnalyser.fftSize = 2048;
-      testSource.connect(testAnalyser);
-      
-      const dataArray = new Uint8Array(testAnalyser.frequencyBinCount);
-      let silentFrames = 0;
-      let detectedAudio = false;
-      
-      // Listen for 500ms
-      const testInterval = setInterval(() => {
-        testAnalyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i];
-        }
-        const average = sum / dataArray.length;
-        
-        if (average < 5) {
-          silentFrames++;
-        } else {
-          detectedAudio = true;
-          console.log(`✓ Microphone TEST: Audio detected! Average level: ${average.toFixed(1)}`);
-          clearInterval(testInterval);
-        }
-      }, 50);
+      let recordStream = stream;
 
-      // Wait 500ms for test
-      await new Promise(resolve => setTimeout(resolve, 500));
-      clearInterval(testInterval);
-      
-      if (!detectedAudio) {
-        console.warn('⚠️ Microphone TEST FAILED: Only silence detected');
-        console.warn('💡 Troubleshooting:');
-        console.warn('  1. Check if microphone is plugged in');
-        console.warn('  2. Check Windows Sound Settings (right-click speaker icon)');
-        console.warn('  3. Allow microphone access in browser settings');
-        console.warn('  4. Try Google Meet or another app to verify microphone works');
+      if (options.micTestEnabled !== false) {
+        // TEST MICROPHONE: Check if it's actually capturing audio
+        debugLog('🔍 MICROPHONE TEST STARTING...');
+        const testContext = new (window.AudioContext || window.webkitAudioContext)();
+        debugLog(`   Test context sample rate: ${testContext.sampleRate}Hz`);
         
-        // Clean up test context
+        // Resume audio context if suspended
+        if (testContext.state === 'suspended') {
+          await testContext.resume();
+          debugLog('   ℹ️ Test audio context resumed');
+        }
+        
+        const testSource = testContext.createMediaStreamSource(stream);
+        const testScriptProcessor = testContext.createScriptProcessor(2048, 1, 1);
+        testSource.connect(testScriptProcessor);
+        testScriptProcessor.connect(testContext.destination);
+        debugLog('   ✓ Test processor connected to destination');
+        
+        let testAudioDetected = false;
+        let testBuffersSampled = 0;
+        let maxSampleValue = 0;
+        
+        // Listen for actual audio data
+        testScriptProcessor.onaudioprocess = (event) => {
+          testBuffersSampled++;
+          const rawData = event.inputBuffer.getChannelData(0);
+          
+          // Track max value for diagnostics
+          for (let i = 0; i < rawData.length; i++) {
+            const absValue = Math.abs(rawData[i]);
+            if (absValue > maxSampleValue) {
+              maxSampleValue = absValue;
+            }
+            // Lower threshold for initial detection
+            if (absValue > 0.001 && !testAudioDetected) {
+              testAudioDetected = true;
+              debugLog(`✓ Microphone TEST: Audio detected! Sample value: ${rawData[i].toFixed(6)}, Max so far: ${maxSampleValue.toFixed(6)}`);
+            }
+          }
+        };
+
+        // Wait 2 seconds for test (more time for microphone to activate)
+        debugLog('   ⏳ Listening for audio input (speak now)...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        debugLog(`   ✓ TEST WAIT COMPLETE - Audio detected: ${testAudioDetected}, Buffers sampled: ${testBuffersSampled}`);
+        
+        if (!testAudioDetected) {
+          console.warn('⚠️ Microphone TEST FAILED: Only silence detected');
+          console.warn(`📊 Diagnostic: Sampled ${testBuffersSampled} buffers, Max sample value: ${maxSampleValue.toFixed(6)}`);
+          console.warn('💡 Troubleshooting:');
+          console.warn('  1. Check Windows Sound Settings - verify microphone is not muted or disabled');
+          console.warn('  2. Make sure microphone is selected as the default input device');
+          console.warn('  3. Check browser permissions - allow microphone access for this site');
+          console.warn('  4. Try restarting your browser');
+          console.warn('  5. Test microphone in Google Meet or another app first');
+          console.warn('  6. Speak LOUDLY into the microphone during the test');
+          
+          // Clean up test resources
+          testScriptProcessor.disconnect();
+          testSource.disconnect();
+          testContext.close();
+          stream.getTracks().forEach(track => track.stop());
+          
+          throw new Error(`❌ Microphone test failed - no audio detected (max level: ${maxSampleValue.toFixed(6)}). Check microphone connection and Windows Sound Settings.`);
+        }
+        
+        debugLog(`✓ Microphone test passed! Detected audio in ${testBuffersSampled} buffers (max level: ${maxSampleValue.toFixed(6)})`);
+        
+        // Clean up test resources
+        testScriptProcessor.disconnect();
         testSource.disconnect();
         testContext.close();
         
-        throw new Error('❌ Microphone test failed - no audio detected. Check microphone connection and permissions.');
+        // Stop and restart the stream fresh for actual recording
+        stream.getTracks().forEach(track => track.stop());
+        debugLog('🔄 Restarting microphone stream for recording...');
+        try {
+          const audioConstraints = options.deviceId
+            ? { deviceId: { exact: options.deviceId } }
+            : true;
+          recordStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+        } catch (err) {
+          throw new Error('Failed to restart audio stream: ' + err.message);
+        }
+        
+        if (recordStream.getAudioTracks().length === 0) {
+          throw new Error('❌ Failed to restart audio stream');
+        }
+        debugLog('✓ Fresh microphone stream obtained for recording');
       }
-      
-      // Clean up test context
-      testSource.disconnect();
-      testContext.close();
 
       // Always create fresh audio context for each recording
       // Don't reuse closed contexts as they cause permission issues
@@ -105,132 +171,169 @@ export const useAudioRecorder = (onTranscript) => {
       }
 
       // Log the actual browser sample rate
-      console.log(`🎵 Browser audio context sample rate: ${audioContext.sampleRate}Hz`);
+      debugLog(`🎵 Browser audio context sample rate: ${audioContext.sampleRate}Hz`);
+
+      // Initialize resampler to convert browser audio to 16kHz for Deepgram
+      resamplerRef.current = new AudioResampler(audioContext.sampleRate, 16000);
+
+      // Optional short delay to mirror desktop pre-mute timing
+      if (options.preMuteDelayMs && options.preMuteDelayMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, options.preMuteDelayMs));
+      }
 
       // Initialize audio muter
-      AudioMuterService.initialize(audioContext);
-      AudioMuterService.mute(); // Mute output during recording
+      const muterReady = AudioMuterService.initialize(audioContext);
+      if (muterReady) {
+        AudioMuterService.mute();
+      } else {
+        console.warn('⚠️ Audio muter unavailable - continuing without muting');
+      }
 
       // Setup audio processing with gain
       if (audioContext.state !== 'running' && audioContext.state !== 'suspended') {
         throw new Error('Audio context not in valid state');
       }
       
-      const source = audioContext.createMediaStreamSource(stream);
-      console.log('✓ Media stream source created');
+      // Use the fresh recordStream, not the test stream
+      const source = audioContext.createMediaStreamSource(recordStream);
+      debugLog('✓ Media stream source created');
+      mediaStreamRef.current = recordStream; // Store the fresh stream
       
       // Add gain node to amplify microphone signal (fixes low volume issue)
       const gainNode = audioContext.createGain();
       gainNode.gain.value = 3.0; // 3x amplification for quiet microphones
       source.connect(gainNode);
       gainNodeRef.current = gainNode;
-      console.log('🔊 Audio gain node initialized (3x amplification)');
+      debugLog('🔊 Audio gain node initialized (3x amplification)');
       
       let processorReady = false;
       let processor;
       let audioChunkCount = 0;
 
-      // Try AudioWorkletNode first (modern, no deprecation)
+      // Prefer AudioWorklet to avoid ScriptProcessor deprecation warnings
       if (audioContext.audioWorklet && audioContext.state !== 'closed') {
         try {
           await audioContext.audioWorklet.addModule('/audio-processor.js');
           if (audioContext.state === 'closed') {
             throw new Error('Audio context was closed during module load');
           }
-          // Explicitly set to 1 input channel, 1 output channel (MONO)
           processor = new AudioWorkletNode(audioContext, 'audio-processor', {
             numberOfInputs: 1,
             numberOfOutputs: 1,
             outputChannelCount: [1]
           });
           processorReady = true;
-          console.log('✓ AudioWorkletNode initialized (mono)');
+          debugLog('✓ AudioWorkletNode initialized as primary');
 
           processor.port.onmessage = (event) => {
-            // Don't process audio chunks after stop() was called
             if (isStoppingRef.current) {
-              console.log('🛑 Ignoring audio chunk - recording stopped');
               return;
             }
             
             if (event.data.type === 'audio') {
               audioChunkCount++;
-              // IMPORTANT: Copy the data immediately - browser reuses this buffer!
               const audioData = new Float32Array(event.data.data);
-              const wavData = new Int16Array(audioData.length);
-              
-              // Calculate audio magnitude to detect if it's silence
-              let sum = 0;
-              for (let i = 0; i < audioData.length; i++) {
-                wavData[i] = audioData[i] < 0 ? audioData[i] * 0x8000 : audioData[i] * 0x7FFF;
-                sum += Math.abs(audioData[i]);
+              const resampledInt16 = resamplerRef.current.resampleToInt16(audioData);
+
+              const now = Date.now();
+              if (now - lastLevelUpdateRef.current > 60) {
+                lastLevelUpdateRef.current = now;
+                let sumSquares = 0;
+                for (let i = 0; i < audioData.length; i++) {
+                  sumSquares += audioData[i] * audioData[i];
+                }
+                const rms = Math.sqrt(sumSquares / audioData.length);
+                const normalized = Math.min(1, rms * 4);
+                setAudioLevel(normalized);
               }
-              const avgMagnitude = (sum / Math.max(1, audioData.length)).toFixed(4);
+              
+              if (audioChunkCount === 1) {
+                debugLog(`🔊 FIRST AUDIO CHUNK RECEIVED (AudioWorklet)! size=${resampledInt16.length}`);
+              }
               
               if (audioChunkCount % 10 === 0) {
-                console.log(`📤 Audio chunks sent: ${audioChunkCount} (avg magnitude: ${avgMagnitude})`);
+                debugLog(`📤 Chunk #${audioChunkCount} (AudioWorklet): resampled to 16kHz, size=${resampledInt16.length}`);
               }
-              streamServiceRef.current.sendAudio(wavData.buffer);
+              streamServiceRef.current.sendAudio(resampledInt16.buffer);
             }
           };
 
           gainNode.connect(processor);
-          // DO NOT connect processor to destination during recording
-          // This prevents microphone feedback/echo in speakers
-          // processor.connect(audioContext.destination);
+          debugLog('✓ gainNode connected to AudioWorkletNode');
           
-          // Instead, connect to the muter's gain node if we need speaker output later
-          // But during recording, we want silence (mic audio → Deepgram only)
+          // Connect AudioWorklet output to destination
+          processor.connect(audioContext.destination);
+          debugLog('✓ AudioWorkletNode connected to destination');
         } catch (err) {
-          console.log('ℹ AudioWorkletNode failed, using ScriptProcessorNode:', err.message);
+          debugLog('AudioWorklet failed, falling back to ScriptProcessor:', err.message);
+          processorReady = false;
         }
       }
 
-      // Fallback to ScriptProcessorNode if AudioWorklet unavailable
-      if (!processorReady) {
-        if (audioContext.state === 'closed') {
-          throw new Error('Audio context is closed, cannot create ScriptProcessor');
+      // Fallback to ScriptProcessor if AudioWorklet is unavailable or fails
+      if (!processorReady && audioContext.state !== 'closed') {
+        try {
+          processor = audioContext.createScriptProcessor(
+            AUDIO_CONFIG.BUFFER_SIZE,
+            1,
+            1
+          );
+          processorReady = true;
+          debugLog('✓ ScriptProcessorNode initialized as fallback');
+
+          processor.onaudioprocess = (event) => {
+            if (isStoppingRef.current) {
+              return;
+            }
+            
+            audioChunkCount++;
+            const audioData = event.inputBuffer.getChannelData(0);
+            
+            // Analyze audio quality before resampling
+            let maxSample = 0, minSample = 0, sumSquares = 0;
+            for (let i = 0; i < audioData.length; i++) {
+              const val = Math.abs(audioData[i]);
+              maxSample = Math.max(maxSample, val);
+              minSample = Math.min(minSample, audioData[i]);
+              sumSquares += audioData[i] * audioData[i];
+            }
+            const rms = Math.sqrt(sumSquares / audioData.length);
+
+            const now = Date.now();
+            if (now - lastLevelUpdateRef.current > 60) {
+              lastLevelUpdateRef.current = now;
+              const normalized = Math.min(1, rms * 4);
+              setAudioLevel(normalized);
+            }
+            
+            // Audio is already amplified by gainNode (3.0x) before reaching processor
+            // No need to apply gain again - just resample to 16kHz for Deepgram
+            const resampledInt16 = resamplerRef.current.resampleToInt16(audioData);
+            
+            if (audioChunkCount === 1) {
+              debugLog(`🔊 FIRST AUDIO CHUNK RECEIVED! max=${maxSample.toFixed(6)} rms=${rms.toFixed(6)}`);
+            }
+            
+            if (audioChunkCount % 10 === 0) {
+              debugLog(`📤 Chunk #${audioChunkCount}: max=${maxSample.toFixed(4)} rms=${rms.toFixed(4)} (48kHz→16kHz, ${resampledInt16.length} samples)`);
+            }
+            streamServiceRef.current.sendAudio(resampledInt16.buffer);
+          };
+
+          gainNode.connect(processor);
+          debugLog('✓ gainNode connected to ScriptProcessor');
+          
+          // Connect processor output to destination so onaudioprocess fires
+          processor.connect(audioContext.destination);
+          debugLog('✓ ScriptProcessor connected to destination');
+        } catch (err) {
+          console.error('❌ ScriptProcessor failed:', err.message);
+          throw new Error('No audio processor available: ' + err.message);
         }
-        processor = audioContext.createScriptProcessor(
-          AUDIO_CONFIG.BUFFER_SIZE,
-          1,
-          1
-        );
-        console.log('✓ ScriptProcessorNode initialized (fallback)');
+      }
 
-        processor.onaudioprocess = (event) => {
-          // Don't process audio chunks after stop() was called
-          if (isStoppingRef.current) {
-            return;  // Silently ignore - ScriptProcessor can't do much else
-          }
-          
-          audioChunkCount++;
-          const audioData = event.inputBuffer.getChannelData(0);
-          const wavData = new Int16Array(audioData.length);
-
-          // Calculate audio magnitude to detect if it's silence
-          // NOTE: Apply gain manually since ScriptProcessor might not reflect gainNode
-          let sum = 0;
-          for (let i = 0; i < audioData.length; i++) {
-            // Apply gain: 3x amplification
-            const amplified = audioData[i] * 3.0;
-            // Clamp to prevent clipping
-            const clamped = amplified > 1.0 ? 1.0 : (amplified < -1.0 ? -1.0 : amplified);
-            wavData[i] = clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF;
-            sum += Math.abs(clamped);
-          }
-          const avgMagnitude = (sum / Math.max(1, audioData.length)).toFixed(4);
-          
-          if (audioChunkCount % 10 === 0) {
-            console.log(`📤 Audio chunks sent: ${audioChunkCount} (avg magnitude: ${avgMagnitude})`);
-          }
-          streamServiceRef.current.sendAudio(wavData.buffer);
-        };
-
-        gainNode.connect(processor);
-        // DO NOT connect processor to destination during recording
-        // This prevents microphone feedback/echo in speakers
-        // processor.connect(audioContext.destination);
+      if (!processorReady) {
+        throw new Error('Failed to initialize audio processor');
       }
 
       processorRef.current = processor;
@@ -250,23 +353,31 @@ export const useAudioRecorder = (onTranscript) => {
         setIsRecording(false);
       };
 
-      await streamServiceRef.current.connect(apiKey, model, language, audioContext.sampleRate);
+      // Always connect with 16kHz since we resample to that on client
+      debugLog('🔗 Connecting to audio stream with:', { apiKey: apiKey ? '***' : 'MISSING', model, language, sampleRate: 16000 });
+      await streamServiceRef.current.connect(apiKey, model, language, 16000);
     } catch (err) {
       setError(err.message);
       setIsRecording(false);
+      setAudioLevel(0);
     }
   }, [onTranscript]);
 
   const stopRecording = useCallback(async () => {
     return new Promise((resolve) => {
       try {
-        console.log('⏹️ Stop recording called');
+        debugLog('⏹️ Stop recording called');
+        
+        // Reset resampler
+        if (resamplerRef.current) {
+          resamplerRef.current.reset();
+        }
         
         // Set flag after small delay to allow initial audio to start flowing
         // This prevents races where stop is called before AudioWorklet connects
         setTimeout(() => {
           isStoppingRef.current = true;
-          console.log('🛑 Stop flag set - halting new audio chunks');
+          debugLog('🛑 Stop flag set - halting new audio chunks');
         }, 200);  // 200ms delay to let initial audio chunk through
         
         // Stop sending NEW audio to Deepgram, but allow buffered audio to flush
@@ -302,13 +413,14 @@ export const useAudioRecorder = (onTranscript) => {
         }
 
         setIsRecording(false);
+        setAudioLevel(0);
 
         // DO NOT close audio context immediately!
         // Wait for Deepgram response before closing
         // Max wait: 10 seconds for response (should be much faster normally)
         const maxWait = 10000;  // 10 seconds instead of 20
         const timeoutId = setTimeout(() => {
-          console.warn('⏱️ Deepgram response timeout after 10s, forcing cleanup');
+          if (DEBUG) console.warn('⏱️ Deepgram response timeout after 10s, forcing cleanup');
           cleanupAudioContext();
           try {
             streamServiceRef.current.disconnect();
@@ -328,7 +440,7 @@ export const useAudioRecorder = (onTranscript) => {
           
           // Handle error event
           if (data.event === 'error') {
-            console.log('🔴 Deepgram error received, cleaning up');
+            debugLog('🔴 Deepgram error received, cleaning up');
             clearTimeout(timeoutId);
             cleanupAudioContext();
             setTimeout(() => {
@@ -338,7 +450,7 @@ export const useAudioRecorder = (onTranscript) => {
               } catch (err) {
                 console.warn('Error disconnecting after error:', err);
               }
-              console.log('✅ stopRecording cleanup complete (after error)');
+              debugLog('✅ stopRecording cleanup complete (after error)');
               resolve();
             }, 300);
             return;
@@ -346,7 +458,7 @@ export const useAudioRecorder = (onTranscript) => {
           
           // After receiving final transcript, do cleanup
           if (data.event === 'final_transcript' || data.isFinal) {
-            console.log('✅ Final transcript received, cleaning up');
+            debugLog('✅ Final transcript received, cleaning up');
             clearTimeout(timeoutId);
             cleanupAudioContext();
             setTimeout(() => {
@@ -356,7 +468,7 @@ export const useAudioRecorder = (onTranscript) => {
               } catch (err) {
                 console.warn('Error disconnecting:', err);
               }
-              console.log('✅ stopRecording cleanup complete');
+              debugLog('✅ stopRecording cleanup complete');
               resolve();
             }, 300);
           }
@@ -365,6 +477,7 @@ export const useAudioRecorder = (onTranscript) => {
         console.error('Error in stopRecording:', err);
         cleanupAudioContext();
         setIsRecording(false);
+        setAudioLevel(0);
         resolve();
       }
     });
@@ -374,7 +487,7 @@ export const useAudioRecorder = (onTranscript) => {
   const cleanupAudioContext = useCallback(() => {
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
       try {
-        console.log('Closing audio context');
+        debugLog('Closing audio context');
         audioContextRef.current.close();
       } catch (err) {
         console.warn('Error closing AudioContext:', err);
@@ -388,6 +501,7 @@ export const useAudioRecorder = (onTranscript) => {
     isRecording,
     error,
     startRecording,
-    stopRecording
+    stopRecording,
+    audioLevel
   };
 };

@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
+const { encryptData, decryptData } = require('../utils/encryption');
 
 /**
  * Data Access Layer - Settings Schema
- * Stores user API keys, preferences, and model selections
+ * Stores user API keys (encrypted), preferences, and model selections
  */
 const settingsSchema = new mongoose.Schema(
   {
@@ -17,7 +18,17 @@ const settingsSchema = new mongoose.Schema(
     deepgramApiKey: {
       type: String,
       default: '',
-      select: false // Don't return by default for security
+      select: false, // Don't return by default for security
+      get: function(value) {
+        if (!value) return '';
+        try {
+          return decryptData(value);
+        } catch (error) {
+          // If decryption fails, assume it's plaintext
+          console.warn('Failed to decrypt deepgramApiKey, assuming plaintext:', error.message);
+          return value;
+        }
+      }
     },
     deepgramModel: {
       type: String,
@@ -32,7 +43,17 @@ const settingsSchema = new mongoose.Schema(
     groqApiKey: {
       type: String,
       default: '',
-      select: false // Don't return by default for security
+      select: false, // Don't return by default for security
+      get: function(value) {
+        if (!value) return '';
+        try {
+          return decryptData(value);
+        } catch (error) {
+          // If decryption fails, assume it's plaintext
+          console.warn('Failed to decrypt groqApiKey, assuming plaintext:', error.message);
+          return value;
+        }
+      }
     },
     groqModel: {
       type: String,
@@ -67,20 +88,34 @@ const settingsSchema = new mongoose.Schema(
       }
     },
     
-    // UI Preferences
-    hotkey: {
-      type: String,
-      default: 'alt' // 'alt', 'ctrl', 'cmd', 'fn'
-    },
+    // UI Preferences (unused fields kept for future use)
     theme: {
       type: String,
       enum: ['light', 'dark', 'auto'],
       default: 'auto'
     },
-    autoMute: {
+
+    // Hotkey selection (mirrors macOS options as close as the browser allows)
+    hotkey: {
+      type: String,
+      default: 'rightOption'
+    },
+
+    // Recording flow preferences
+    micTestEnabled: {
       type: Boolean,
       default: true
     },
+    preMuteDelayMs: {
+      type: Number,
+      default: 150
+    },
+    microphoneDeviceId: {
+      type: String,
+      default: ''
+    },
+    
+    // Feature Toggles (web-only, not in desktop)
     autoCopy: {
       type: Boolean,
       default: false
@@ -101,16 +136,38 @@ const settingsSchema = new mongoose.Schema(
     }
   },
   {
-    timestamps: true
+    timestamps: true,
+    toJSON: { getters: true },
+    toObject: { getters: true }
   }
 );
+
+// Encrypt API keys before saving
+settingsSchema.pre('save', function(next) {
+  try {
+    if (this.isModified('deepgramApiKey') && this.deepgramApiKey) {
+      this.deepgramApiKey = encryptData(this.deepgramApiKey);
+    }
+    if (this.isModified('groqApiKey') && this.groqApiKey) {
+      this.groqApiKey = encryptData(this.groqApiKey);
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Convert to JSON with API keys included
+settingsSchema.methods.toJSON = function() {
+  const obj = this.toObject({ getters: true });
+  return obj;
+};
 
 // Index for faster queries
 settingsSchema.index({ userId: 1 });
 
-// Middleware to exclude sensitive data
-settingsSchema.pre(/^find/, function() {
-  this.select('-deepgramApiKey -groqApiKey');
-});
+// NOTE: Don't use pre('find') middleware to exclude fields
+// This prevents select() from working properly to include them
+// Instead rely on select: false in the schema and explicit select() in queries
 
 module.exports = mongoose.model('Settings', settingsSchema);

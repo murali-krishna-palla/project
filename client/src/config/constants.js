@@ -8,41 +8,41 @@ export const HOTKEY_OPTIONS = [
 
 export const RECORDING_STATES = {
   IDLE: 'idle',
+  TESTING: 'testing',
   RECORDING: 'recording',
   TRANSCRIBING: 'transcribing',
   ERROR: 'error'
 };
 
 export const CODE_MIX_LANGUAGES = {
-  hinglish: 'Hinglish (Hindi-English)',
-  tanglish: 'Tanglish (Tamil-English)',
-  spanglish: 'Spanglish (Spanish-English)',
-  franglais: 'Franglais (French-English)',
-  denglish: 'Denglish (German-English)',
-  jinglish: 'Jinglish (Japanese-English)',
-  konglish: 'Konglish (Korean-English)',
-  chinglish: 'Chinglish (Chinese-English)',
-  singlish: 'Singlish (Singapore English)',
-  manglish: 'Manglish (Malay-English)',
-  taglish: 'Taglish (Tagalog-English)',
-  benglish: 'Benglish (Bengali-English)',
-  punglish: 'Punglish (Punjabi-English)',
-  telugish: 'Telugish (Telugu-English)',
-  kanglish: 'Kanglish (Kannada-English)',
-  malaglish: 'Malaglish (Marathi-English)'
+  'Hinglish': 'Hindi + English',
+  'Tanglish': 'Tamil + English',
+  'Benglish': 'Bengali + English',
+  'Kanglish': 'Kannada + English',
+  'Tenglish': 'Telugu + English',
+  'Minglish': 'Marathi + English',
+  'Punglish': 'Punjabi + English',
+  'Spanglish': 'Spanish + English',
+  'Franglais': 'French + English',
+  'Portuñol': 'Portuguese + Spanish',
+  'Chinglish': 'Chinese + English',
+  'Japlish': 'Japanese + English',
+  'Konglish': 'Korean + English',
+  'Arabizi': 'Arabic + English',
+  'Sheng': 'Swahili + English',
+  'Camfranglais': 'French + English + local languages'
 };
 
 export const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'pl', name: 'Polish' },
-  { code: 'pt', name: 'Portuguese' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'zh', name: 'Chinese' },
-  { code: 'it', name: 'Italian' }
+  // Pure languages
+  'English', 'Hindi', 'Spanish', 'French', 'German',
+  'Portuguese', 'Japanese', 'Korean', 'Arabic', 'Bengali',
+  'Tamil', 'Telugu', 'Kannada', 'Marathi', 'Punjabi',
+  'Russian', 'Chinese (Simplified)', 'Italian', 'Dutch', 'Swahili',
+  // Mixed / code-switch styles from vocal
+  'Hinglish', 'Tanglish', 'Benglish', 'Kanglish', 'Tenglish',
+  'Minglish', 'Punglish', 'Spanglish', 'Franglais', 'Portuñol',
+  'Chinglish', 'Japlish', 'Konglish', 'Arabizi', 'Sheng', 'Camfranglais'
 ];
 
 export const AUDIO_CONFIG = {

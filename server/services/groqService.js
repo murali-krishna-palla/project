@@ -103,33 +103,68 @@ class GroqService {
   }
 
   buildPrompt(options) {
-    let prompt = 'You are a precise text processing assistant. ';
-    const steps = [];
+    // Match vocal's exact prompt construction from GroqService.swift
+    const instructions = [];
+    let stepNumber = 1;
 
+    // Code-Mix (from vocal's implementation)
     if (options.codeMix && options.codeMixLanguage) {
-      const codeMixName = constants.CODE_MIX_LANGUAGES[options.codeMixLanguage];
-      steps.push(`Convert to ${codeMixName}`);
+      const mixType = options.codeMixLanguage;
+      instructions.push(
+        `${stepNumber}. The input is in ${mixType}. Transliterate any non-Roman script (such as Devanagari, Tamil, etc.) to Roman script. Keep English words as-is. Do not translate — preserve the original meaning in mixed form.`
+      );
+      stepNumber += 1;
     }
 
+    // Spelling correction
     if (options.spelling) {
-      steps.push('Fix spelling errors');
+      instructions.push(
+        `${stepNumber}. Fix any spelling mistakes. Do not change meaning or structure.`
+      );
+      stepNumber += 1;
     }
 
+    // Grammar correction
     if (options.grammar) {
-      steps.push('Correct grammar and punctuation');
+      instructions.push(
+        `${stepNumber}. Fix any grammar mistakes. Do not change meaning or add content.`
+      );
+      stepNumber += 1;
     }
 
-    if (options.targetLanguage && options.targetLanguage !== 'en') {
-      steps.push(`Translate to ${options.targetLanguage}`);
+    // Target language / Translation
+    if (options.targetLanguage && options.targetLanguage !== 'en' && options.targetLanguage !== 'English') {
+      // Check if target is a code-mix language
+      const codeMixStyles = {
+        'Hinglish': true, 'Tanglish': true, 'Benglish': true, 'Kanglish': true,
+        'Tenglish': true, 'Minglish': true, 'Punglish': true, 'Spanglish': true,
+        'Franglais': true, 'Portuñol': true, 'Chinglish': true, 'Japlish': true,
+        'Konglish': true, 'Arabizi': true, 'Sheng': true, 'Camfranglais': true
+      };
+
+      if (codeMixStyles[options.targetLanguage]) {
+        // Code-mix target (from vocal's implementation)
+        instructions.push(
+          `${stepNumber}. Rewrite the text in ${options.targetLanguage} style: keep English words as-is, and transliterate any non-Roman script (such as Devanagari, Tamil, etc.) to Roman script. Do not translate — preserve the original meaning in mixed form.`
+        );
+      } else {
+        // Pure language translation
+        instructions.push(
+          `${stepNumber}. Translate the entire text to ${options.targetLanguage}. Every word must be in ${options.targetLanguage}.`
+        );
+      }
     }
 
-    if (steps.length > 0) {
-      prompt += 'Apply these transformations in order: ' + steps.join(', ') + '.';
+    // Build final prompt exactly like vocal
+    if (instructions.length > 0) {
+      return (
+        'Process the following text by applying these steps in order:\n' +
+        instructions.join('\n') +
+        '\nReturn only the final processed text with no explanation.'
+      );
     } else {
-      prompt += 'Return the text as-is.';
+      return 'Return the text as-is with no changes.';
     }
-
-    return prompt;
   }
 
   async fetchModels(apiKey) {

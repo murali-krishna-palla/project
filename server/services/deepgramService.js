@@ -14,6 +14,7 @@ class DeepgramService {
     this.isRecording = false;
     this.audioChunksReceived = 0;
     this.isWaitingForFinal = false;
+    this.finalResponseTimeoutId = null;
   }
 
   async connectWebSocket(clientWs, apiKey, model, language, sampleRate = 16000) {
@@ -104,21 +105,29 @@ class DeepgramService {
         const interim = response.channel.alternatives[0].transcript;
         logger.info('Interim transcript:', interim);
 
-        this.clientWs.send(JSON.stringify({
-          event: 'interim_transcript',
-          transcript: interim,
-          isFinal: false
-        }));
+        if (this.clientWs && this.clientWs.readyState === WebSocket.OPEN) {
+          this.clientWs.send(JSON.stringify({
+            event: 'interim_transcript',
+            transcript: interim,
+            isFinal: false
+          }));
+        }
       }
 
       // Emit one final transcript only when Deepgram signals stream finalized.
       if (this.isWaitingForFinal && response.is_final) {
         logger.info('Final transcript:', this.accumulatedTranscript || '(EMPTY - no speech detected)');
-        this.clientWs.send(JSON.stringify({
-          event: 'final_transcript',
-          transcript: this.accumulatedTranscript,
-          isFinal: true
-        }));
+        if (this.finalResponseTimeoutId) {
+          clearTimeout(this.finalResponseTimeoutId);
+          this.finalResponseTimeoutId = null;
+        }
+        if (this.clientWs && this.clientWs.readyState === WebSocket.OPEN) {
+          this.clientWs.send(JSON.stringify({
+            event: 'final_transcript',
+            transcript: this.accumulatedTranscript,
+            isFinal: true
+          }));
+        }
         // Reset flag so we don't emit multiple final responses
         this.isWaitingForFinal = false;
       }
@@ -206,11 +215,11 @@ class DeepgramService {
       // Send empty buffer to signal end of audio
       this.deepgramWs.send(Buffer.alloc(0));
       
-      // Force send final transcript after 2 seconds if Deepgram hasn't responded
+      // Force send final transcript after 3 seconds if Deepgram hasn't responded
       // This handles edge cases where Deepgram doesn't send is_final for silent audio
-      setTimeout(() => {
-        if (this.isWaitingForFinal) {
-          logger.warn('⚠️ No final response from Deepgram after 2s, forcing final transcript');
+      this.finalResponseTimeoutId = setTimeout(() => {
+        if (this.isWaitingForFinal && this.clientWs && this.clientWs.readyState === WebSocket.OPEN) {
+          logger.warn('⚠️ No final response from Deepgram after 3s, forcing final transcript');
           logger.info('Final transcript (forced):', this.accumulatedTranscript || '(silent or no speech)');
           this.clientWs.send(JSON.stringify({
             event: 'final_transcript',
@@ -220,7 +229,7 @@ class DeepgramService {
           }));
           this.isWaitingForFinal = false;
         }
-      }, 2000);  // 2 second timeout
+      }, 3000);
     }
   }
 
@@ -228,6 +237,10 @@ class DeepgramService {
     if (this.deepgramWs) {
       this.deepgramWs.close();
       this.deepgramWs = null;
+    }
+    if (this.finalResponseTimeoutId) {
+      clearTimeout(this.finalResponseTimeoutId);
+      this.finalResponseTimeoutId = null;
     }
   }
 

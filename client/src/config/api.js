@@ -1,21 +1,25 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_PREFIX = `${API_BASE_URL}/api`;
 const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:5000/ws';
+
+export { API_BASE_URL };
 
 export const API_ENDPOINTS = {
   // Auth
-  LOGIN: `${API_BASE_URL}/auth/login`,
-  REGISTER: `${API_BASE_URL}/auth/register`,
+  LOGIN: `${API_PREFIX}/auth/login`,
+  REGISTER: `${API_PREFIX}/auth/register`,
+  VALIDATE: `${API_PREFIX}/auth/validate`,
 
   // Settings
-  SETTINGS: (userId) => `${API_BASE_URL}/settings/${userId}`,
-  DEEPGRAM_MODELS: `${API_BASE_URL}/settings/models/deepgram`,
-  GROQ_MODELS: `${API_BASE_URL}/settings/models/groq`,
-  DEEPGRAM_BALANCE: `${API_BASE_URL}/settings/balance/deepgram`,
-  GROQ_BALANCE: `${API_BASE_URL}/settings/balance/groq`,
+  SETTINGS: (userId) => `${API_PREFIX}/settings/${userId}`,
+  DEEPGRAM_MODELS: `${API_PREFIX}/settings/models/deepgram`,
+  GROQ_MODELS: `${API_PREFIX}/settings/models/groq`,
+  DEEPGRAM_BALANCE: `${API_PREFIX}/settings/balance/deepgram`,
+  GROQ_BALANCE: `${API_PREFIX}/settings/balance/groq`,
 
   // Recordings
-  RECORDINGS: (userId) => `${API_BASE_URL}/recordings/${userId}`,
-  RECORDING: (userId, recordingId) => `${API_BASE_URL}/recordings/${userId}/${recordingId}`,
+  RECORDINGS: (userId) => `${API_PREFIX}/recordings/${userId}`,
+  RECORDING: (userId, recordingId) => `${API_PREFIX}/recordings/${userId}/${recordingId}`,
 
   // WebSocket
   AUDIO_WS: `${WS_URL}/audio`

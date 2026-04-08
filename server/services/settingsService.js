@@ -4,7 +4,7 @@ const GroqService = require('./groqService');
 
 class SettingsService {
   static async getSettings(userId) {
-    let settings = await Settings.findOne({ userId });
+    let settings = await Settings.findOne({ userId }).select('+deepgramApiKey +groqApiKey');
     if (!settings) {
       settings = new Settings({ userId });
       await settings.save();
@@ -13,7 +13,7 @@ class SettingsService {
   }
 
   static async updateSettings(userId, updates) {
-    let settings = await Settings.findOne({ userId });
+    let settings = await Settings.findOne({ userId }).select('+deepgramApiKey +groqApiKey');
     if (!settings) {
       settings = new Settings({ userId });
     }
@@ -21,7 +21,9 @@ class SettingsService {
     Object.assign(settings, updates);
     settings.updatedAt = new Date();
     await settings.save();
-    return settings;
+    
+    // Explicitly select the API keys for the response
+    return await Settings.findOne({ userId }).select('+deepgramApiKey +groqApiKey');
   }
 
   static async fetchDeepgramModels(apiKey) {

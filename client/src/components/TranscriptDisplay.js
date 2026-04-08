@@ -5,7 +5,7 @@ import '../styles/TranscriptDisplay.css';
 /**
  * Presentation Layer - Transcript Display Component
  */
-const TranscriptDisplay = ({ interim, final, isProcessing }) => {
+const TranscriptDisplay = ({ interim, final, isProcessing, onSave, saveStatus, isSaving }) => {
   const [copyStatus, setCopyStatus] = useState(null);
 
   const handleCopyToClipboard = async (text) => {
@@ -37,15 +37,30 @@ const TranscriptDisplay = ({ interim, final, isProcessing }) => {
           <div className="transcript-box final">
             {final}
           </div>
-          <button className="copy-button" onClick={() => handleCopyToClipboard(final)}>
-            📋 Copy to Clipboard
-          </button>
+          <div className="transcript-actions">
+            <button className="copy-button" onClick={() => handleCopyToClipboard(final)}>
+              📋 Copy to Clipboard
+            </button>
+            <button
+              className="save-button"
+              onClick={() => onSave?.(final)}
+              disabled={isSaving}
+            >
+              {isSaving ? '⏳ Saving...' : '💾 Save to History'}
+            </button>
+          </div>
         </div>
       )}
 
       {copyStatus && (
         <div className="copy-status">
           {copyStatus}
+        </div>
+      )}
+
+      {saveStatus && (
+        <div className="save-status">
+          {saveStatus}
         </div>
       )}
 

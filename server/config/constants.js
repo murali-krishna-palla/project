@@ -22,24 +22,24 @@ module.exports = {
     TEMPERATURE: 0
   },
 
-  // Code-Mix Languages
+  // Code-Mix Languages (16 types - exactly matching vocal/vocalflow macOS version)
   CODE_MIX_LANGUAGES: {
-    hinglish: 'Hindi-English Code-Mix (Roman Script)',
-    tanglish: 'Tamil-English Code-Mix (Roman Script)',
-    spanglish: 'Spanish-English Code-Mix',
-    franglais: 'French-English Code-Mix',
-    denglish: 'German-English Code-Mix',
-    jinglish: 'Japanese-English Code-Mix',
-    konglish: 'Korean-English Code-Mix',
-    chinglish: 'Chinese-English Code-Mix',
-    singlish: 'Singaporean English',
-    manglish: 'Malay-English Code-Mix',
-    taglish: 'Tagalog-English Code-Mix',
-    benglish: 'Bengali-English Code-Mix',
-    punglish: 'Punjabi-English Code-Mix',
-    telugish: 'Telugu-English Code-Mix',
-    kanglish: 'Kannada-English Code-Mix',
-    malaglish: 'Marathi-English Code-Mix'
+    'Hinglish': 'Hindi + English',
+    'Tanglish': 'Tamil + English',
+    'Benglish': 'Bengali + English',
+    'Kanglish': 'Kannada + English',
+    'Tenglish': 'Telugu + English',
+    'Minglish': 'Marathi + English',
+    'Punglish': 'Punjabi + English',
+    'Spanglish': 'Spanish + English',
+    'Franglais': 'French + English',
+    'Portuñol': 'Portuguese + Spanish',
+    'Chinglish': 'Chinese + English',
+    'Japlish': 'Japanese + English',
+    'Konglish': 'Korean + English',
+    'Arabizi': 'Arabic + English',
+    'Sheng': 'Swahili + English',
+    'Camfranglais': 'French + English + local languages'
   },
 
   // Recording States

@@ -2,9 +2,10 @@
 .transcript-display {
   margin: 20px 0;
   padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(16, 42, 44, 0.08);
 }
 
 .transcript-section {
@@ -13,33 +14,33 @@
 
 .transcript-section h3 {
   margin: 0 0 10px 0;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
-  color: #667eea;
+  color: var(--ink);
 }
 
 .transcript-box {
   padding: 15px;
-  background: #f9f9f9;
-  border-left: 3px solid #667eea;
-  border-radius: 4px;
+  background: rgba(15, 31, 33, 0.04);
+  border-left: 3px solid rgba(31, 165, 138, 0.6);
+  border-radius: 8px;
   min-height: 60px;
   font-size: 14px;
   line-height: 1.6;
-  color: #333;
+  color: var(--ink);
 }
 
 .transcript-box.interim {
-  border-left-color: #ffc107;
-  background: #fffbf0;
-  color: #999;
+  border-left-color: rgba(255, 155, 74, 0.8);
+  background: rgba(255, 155, 74, 0.08);
+  color: var(--muted);
   font-style: italic;
 }
 
 .transcript-box.final {
-  border-left-color: #4caf50;
-  background: #f1f8f4;
-  color: #333;
+  border-left-color: rgba(31, 165, 138, 0.8);
+  background: rgba(31, 165, 138, 0.08);
+  color: var(--ink);
 }
 
 .placeholder {
@@ -49,18 +50,18 @@
 .processing-indicator {
   padding: 10px;
   text-align: center;
-  color: #ffc107;
+  color: var(--accent-2);
   font-size: 14px;
   font-weight: 500;
 }
 
 .copy-button {
-  margin-top: 10px;
+  margin-top: 0;
   padding: 8px 16px;
-  background: #4caf50;
+  background: var(--accent);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -68,19 +69,58 @@
 }
 
 .copy-button:hover {
-  background: #45a049;
+  background: #15846f;
 }
 
 .copy-button:active {
   transform: scale(0.98);
 }
 
+.transcript-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.save-button {
+  padding: 8px 16px;
+  background: var(--accent-3);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.save-button:hover {
+  background: #255fcb;
+}
+
+.save-button:disabled {
+  background: rgba(47, 111, 237, 0.35);
+  cursor: not-allowed;
+}
+
+.save-status {
+  margin-top: 10px;
+  padding: 10px 15px;
+  background: rgba(47, 111, 237, 0.12);
+  color: #2444a9;
+  border-left: 3px solid rgba(47, 111, 237, 0.6);
+  border-radius: 4px;
+  font-size: 13px;
+  animation: slideIn 0.3s ease;
+}
+
 .copy-status {
   margin-top: 10px;
   padding: 10px 15px;
-  background: #e8f5e9;
-  color: #2e7d32;
-  border-left: 3px solid #4caf50;
+  background: rgba(31, 165, 138, 0.12);
+  color: #1f6f5f;
+  border-left: 3px solid rgba(31, 165, 138, 0.7);
   border-radius: 4px;
   font-size: 13px;
   animation: slideIn 0.3s ease;

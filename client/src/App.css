@@ -1,4 +1,27 @@
 .App {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: transparent;
+}
+
+.App.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, rgba(31, 165, 138, 0.35), rgba(47, 111, 237, 0.35)),
+    linear-gradient(135deg, #0b2f33 0%, #163c3f 100%);
+}
+
+.spinner {
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
 }

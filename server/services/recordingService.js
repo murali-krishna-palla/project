@@ -25,21 +25,21 @@ class RecordingService {
       originalTranscript,
       model,
       language,
+      deepgramModel,
+      deepgramLanguage,
+      groqModel,
       deepgramApiKey,
       groqApiKey,
-      processingOptions
+      processingOptions,
+      duration = 0
     } = recordingData;
 
     let processedTranscript = originalTranscript;
-    let processingApplied = {
-      spelling: false,
-      grammar: false,
-      codeMix: false,
-      translation: false
-    };
+    let processingTime = 0;
+    const startTime = Date.now();
 
-    // Apply Groq post-processing if enabled
-    if (processingOptions && groqApiKey) {
+    // Apply Groq post-processing if enabled and API key exists
+    if (processingOptions && groqApiKey && Object.values(processingOptions).some(Boolean)) {
       try {
         if (
           processingOptions.spelling ||
@@ -52,33 +52,52 @@ class RecordingService {
             originalTranscript,
             processingOptions,
             groqApiKey,
-            processingOptions.selectedGroqModel
+            processingOptions.selectedGroqModel || groqModel
           );
 
-          processingApplied = {
-            spelling: processingOptions.spelling || false,
-            grammar: processingOptions.grammar || false,
-            codeMix: processingOptions.codeMix || false,
-            translation: processingOptions.targetLanguage ? true : false
-          };
+          processingTime = Date.now() - startTime;
+          logger.info(`✓ Groq processing completed in ${processingTime}ms`);
         }
       } catch (err) {
-        logger.error('Groq processing failed:', err);
+        logger.error('Groq processing error:', err.message);
         processedTranscript = originalTranscript;
       }
     }
 
+    // Create recording with all metadata matching vocal
     const recording = new Recording({
       userId,
       originalTranscript,
       processedTranscript,
-      model,
-      language,
-      processingApplied,
-      duration: recordingData.duration || 0
+      duration: Math.round(duration),
+      
+      // Audio format (always 16kHz, mono, 16-bit PCM for vocal compatibility)
+      audioFormat: 'PCM16',
+      sampleRate: 16000,
+      
+      // Model & Language
+      deepgramModel: deepgramModel || model || 'nova-2',
+      deepgramLanguage: deepgramLanguage || language || 'en',
+      groqModel: processingOptions && (processingOptions.spelling || processingOptions.grammar || processingOptions.codeMix || processingOptions.targetLanguage) ? (groqModel || 'mixtral-8x7b-32768') : '',
+      
+      // Complete processing options (matching vocal exactly)
+      processingOptions: processingOptions || {
+        spelling: false,
+        grammar: false,
+        codeMix: false,
+        codeMixLanguage: 'Hinglish',
+        targetLanguage: false,
+        targetLanguageValue: 'en'
+      },
+      processingTime,
+      
+      // Status
+      status: 'completed',
+      isFinal: true
     });
 
     await recording.save();
+    logger.info(`✓ Recording saved: ${recording._id}`);
     return recording;
   }
 
