@@ -1,6 +1,16 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const DEFAULT_API_BASE_URL =
+  process.env.NODE_ENV === 'production'
+    ? 'https://project-1-ofre.onrender.com'
+    : 'http://localhost:5000';
+
+const DEFAULT_WS_URL =
+  process.env.NODE_ENV === 'production'
+    ? 'wss://project-1-ofre.onrender.com/ws'
+    : 'ws://localhost:5000/ws';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || DEFAULT_API_BASE_URL;
 const API_PREFIX = `${API_BASE_URL}/api`;
-const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:5000/ws';
+const WS_URL = process.env.REACT_APP_WS_URL || DEFAULT_WS_URL;
 
 export { API_BASE_URL };
 
