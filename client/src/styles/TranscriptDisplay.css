@@ -6,6 +6,35 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   border: 1px solid rgba(16, 42, 44, 0.08);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.transcript-display::after {
+  content: '';
+  position: absolute;
+  inset: -40% auto auto -40%;
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, rgba(31, 165, 138, 0.12), transparent 70%);
+  opacity: 0.8;
+  pointer-events: none;
+  animation: haloDrift 10s ease-in-out infinite;
+}
+
+@keyframes haloDrift {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(40px, 20px);
+  }
+}
+
+.transcript-display:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px rgba(16, 42, 44, 0.12);
 }
 
 .transcript-section {
@@ -53,6 +82,16 @@
   color: var(--accent-2);
   font-size: 14px;
   font-weight: 500;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .copy-button {

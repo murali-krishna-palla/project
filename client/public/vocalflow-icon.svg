@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="VocalFlow icon">
+  <defs>
+    <linearGradient id="vf-gradient" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1fa58a" />
+      <stop offset="55%" stop-color="#2f6fed" />
+      <stop offset="100%" stop-color="#ff9b4a" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#0f2d2f" />
+  <circle cx="64" cy="64" r="44" fill="url(#vf-gradient)" opacity="0.95" />
+  <rect x="56" y="36" width="16" height="56" rx="8" fill="#ffffff" />
+  <rect x="38" y="52" width="12" height="24" rx="6" fill="#ffffff" opacity="0.85" />
+  <rect x="78" y="52" width="12" height="24" rx="6" fill="#ffffff" opacity="0.85" />
+  <path d="M48 92c10 12 22 12 32 0" stroke="#ffffff" stroke-width="8" stroke-linecap="round" fill="none" />
+</svg>
