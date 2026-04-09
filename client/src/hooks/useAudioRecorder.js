@@ -363,6 +363,20 @@ export const useAudioRecorder = (onTranscript) => {
     }
   }, [onTranscript, debugLog]);
 
+  // Helper function to safely close audio context
+  const cleanupAudioContext = useCallback(() => {
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      try {
+        debugLog('Closing audio context');
+        audioContextRef.current.close();
+      } catch (err) {
+        console.warn('Error closing AudioContext:', err);
+      } finally {
+        audioContextRef.current = null;
+      }
+    }
+  }, [debugLog]);
+
   const stopRecording = useCallback(async () => {
     return new Promise((resolve) => {
       try {
@@ -482,20 +496,6 @@ export const useAudioRecorder = (onTranscript) => {
       }
     });
   }, [DEBUG, cleanupAudioContext, debugLog]);
-
-  // Helper function to safely close audio context
-  const cleanupAudioContext = useCallback(() => {
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      try {
-        debugLog('Closing audio context');
-        audioContextRef.current.close();
-      } catch (err) {
-        console.warn('Error closing AudioContext:', err);
-      } finally {
-        audioContextRef.current = null;
-      }
-    }
-  }, [debugLog]);
 
   return {
     isRecording,
