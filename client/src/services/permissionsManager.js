@@ -94,4 +94,6 @@ class PermissionsManager {
   }
 }
 
-export default new PermissionsManager();
+const permissionsManager = new PermissionsManager();
+
+export default permissionsManager;

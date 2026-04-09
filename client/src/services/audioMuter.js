@@ -96,4 +96,6 @@ class AudioMuterService {
   }
 }
 
-export default new AudioMuterService();
+const audioMuterService = new AudioMuterService();
+
+export default audioMuterService;

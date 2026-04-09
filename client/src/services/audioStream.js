@@ -1,4 +1,4 @@
-import { API_ENDPOINTS, DEEPGRAM_WS_PARAMS } from '../config/api';
+import { API_ENDPOINTS } from '../config/api';
 
 class AudioStreamService {
   constructor() {

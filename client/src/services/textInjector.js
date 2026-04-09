@@ -63,4 +63,6 @@ class TextInjectorService {
   }
 }
 
-export default new TextInjectorService();
+const textInjectorService = new TextInjectorService();
+
+export default textInjectorService;
