@@ -136,3 +136,18 @@
     transform: translateY(0);
   }
 }
+
+@media (max-width: 720px) {
+  .transcript-display {
+    padding: 16px;
+  }
+
+  .transcript-actions {
+    flex-direction: column;
+  }
+
+  .copy-button,
+  .save-button {
+    width: 100%;
+  }
+}

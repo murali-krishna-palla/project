@@ -116,3 +116,139 @@
   color: #e7f6f2;
   font-weight: 600;
 }
+
+.mobile-recorder {
+  display: none;
+  position: relative;
+  z-index: 2;
+  padding: 18px 16px 6px;
+}
+
+.mobile-recorder-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.94), rgba(239, 250, 246, 0.9));
+  border: 1px solid rgba(31, 165, 138, 0.2);
+  box-shadow: 0 14px 28px rgba(8, 20, 22, 0.18);
+  backdrop-filter: blur(6px);
+}
+
+.mobile-recorder-info {
+  flex: 1;
+}
+
+.mobile-title {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #0f2d2f;
+}
+
+.mobile-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mic-button {
+  position: relative;
+  border: none;
+  padding: 12px 14px;
+  min-width: 112px;
+  border-radius: 16px;
+  background: linear-gradient(140deg, #1fa58a, #2f6fed);
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 0 10px 24px rgba(31, 165, 138, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mic-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.mic-button:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 14px 28px rgba(47, 111, 237, 0.35);
+}
+
+.mic-button.active {
+  background: linear-gradient(140deg, #ff9b4a, #e45555);
+}
+
+.mic-core {
+  display: inline-block;
+  font-size: 20px;
+  line-height: 1;
+  margin-right: 6px;
+}
+
+.mic-label {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+.mic-rings {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: 120px;
+  height: 120px;
+  pointer-events: none;
+}
+
+.mic-rings .ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  opacity: 0;
+}
+
+.mobile-recorder.is-recording .mic-rings .ring-1 {
+  animation: ringPulse 1.4s ease-out infinite;
+}
+
+.mobile-recorder.is-recording .mic-rings .ring-2 {
+  animation: ringPulse 1.6s ease-out infinite 0.3s;
+}
+
+.mobile-recorder.is-recording .mic-rings .ring-3 {
+  animation: ringPulse 1.8s ease-out infinite 0.6s;
+}
+
+@keyframes ringPulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.6;
+  }
+  70% {
+    transform: scale(calc(1 + (var(--level, 0.2) * 0.6)));
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 820px) {
+  .hotkey-hint {
+    display: none;
+  }
+
+  .mobile-recorder {
+    display: block;
+  }
+}

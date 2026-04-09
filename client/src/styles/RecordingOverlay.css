@@ -46,6 +46,10 @@
   min-width: 120px;
 }
 
+.recording-overlay.recording .waveform {
+  box-shadow: 0 12px 28px rgba(31, 165, 138, 0.45);
+}
+
 .bar {
   width: 4px;
   height: 6px;
@@ -107,4 +111,19 @@
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .recording-overlay {
+    top: auto;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .stop-button,
+  .transcribing-status,
+  .testing-status {
+    bottom: 58px;
+  }
 }

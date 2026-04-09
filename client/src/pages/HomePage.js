@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AppProvider } from '../context/AppContext';
 import { useAppState } from '../hooks/useApp';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
@@ -67,6 +67,55 @@ const HomePageContent = ({ onLogoutProp }) => {
   };
 
   const { error, startRecording, stopRecording, audioLevel } = useAudioRecorder(handleTranscript);
+
+  const startRecordingFlow = useCallback(async () => {
+    if (recordingState !== RECORDING_STATES.IDLE || !settings?.deepgramApiKey) {
+      if (!settings?.deepgramApiKey) {
+        console.error('❌ Cannot start recording: No Deepgram API key configured');
+      }
+      return;
+    }
+
+    const micTestEnabled = settings?.micTestEnabled ?? true;
+    setRecordingState(micTestEnabled ? RECORDING_STATES.TESTING : RECORDING_STATES.RECORDING);
+    setIsOverlayVisible(true);
+    setMicTestSecondsLeft(micTestEnabled ? 2 : 0);
+
+    const apiKey = settings.deepgramApiKey;
+    const model = settings.deepgramModel || 'nova-2';
+    const language = settings.deepgramLanguage || 'en';
+
+    try {
+      await startRecording(apiKey, model, language, {
+        micTestEnabled,
+        preMuteDelayMs: settings?.preMuteDelayMs ?? 150,
+        deviceId: settings?.microphoneDeviceId || ''
+      });
+      setRecordingState(RECORDING_STATES.RECORDING);
+    } catch (err) {
+      setRecordingState(RECORDING_STATES.IDLE);
+      setIsOverlayVisible(false);
+    }
+  }, [recordingState, settings, startRecording, setIsOverlayVisible, setMicTestSecondsLeft, setRecordingState]);
+
+  const stopRecordingFlow = useCallback(() => {
+    if (recordingState === RECORDING_STATES.TESTING) {
+      setRecordingState(RECORDING_STATES.IDLE);
+      setIsOverlayVisible(false);
+      return;
+    }
+
+    if (recordingState !== RECORDING_STATES.RECORDING) {
+      return;
+    }
+
+    setRecordingState(RECORDING_STATES.TRANSCRIBING);
+    stopRecording().catch(err => {
+      console.error('Error stopping recording:', err);
+      setRecordingState(RECORDING_STATES.IDLE);
+      setIsOverlayVisible(false);
+    });
+  }, [recordingState, stopRecording, setIsOverlayVisible, setRecordingState]);
 
   const handleSaveTranscript = async (finalText) => {
     if (!finalText || !finalText.trim() || !userId || !settings) {
@@ -189,35 +238,8 @@ const HomePageContent = ({ onLogoutProp }) => {
       // Start recording: configured hotkey
       if (isMatchingHotkey(e) && recordingState === RECORDING_STATES.IDLE) {
         e.preventDefault();
-        
-        // Check if settings are loaded with API key
-        if (!settings?.deepgramApiKey) {
-          console.error('❌ Cannot start recording: No Deepgram API key configured');
-          return;
-        }
-        
-        const micTestEnabled = settings?.micTestEnabled ?? true;
-        setRecordingState(micTestEnabled ? RECORDING_STATES.TESTING : RECORDING_STATES.RECORDING);
-        setIsOverlayVisible(true);
-        setMicTestSecondsLeft(micTestEnabled ? 2 : 0);
-        
-        const apiKey = settings.deepgramApiKey;
-        const model = settings.deepgramModel || 'nova-2';
-        const language = settings.deepgramLanguage || 'en';
-        
-        console.log('🎙️ Starting recording with:', { model, language, apiKey: apiKey ? '***' : 'MISSING' });
-
-        try {
-          await startRecording(apiKey, model, language, {
-            micTestEnabled,
-            preMuteDelayMs: settings?.preMuteDelayMs ?? 150,
-            deviceId: settings?.microphoneDeviceId || ''
-          });
-          setRecordingState(RECORDING_STATES.RECORDING);
-        } catch (err) {
-          setRecordingState(RECORDING_STATES.IDLE);
-          setIsOverlayVisible(false);
-        }
+        console.log('🎙️ Starting recording from hotkey');
+        await startRecordingFlow();
       }
     };
 
@@ -225,8 +247,7 @@ const HomePageContent = ({ onLogoutProp }) => {
       // Cancel mic test on release
       if (isMatchingHotkey(e) && recordingState === RECORDING_STATES.TESTING) {
         e.preventDefault();
-        setRecordingState(RECORDING_STATES.IDLE);
-        setIsOverlayVisible(false);
+        stopRecordingFlow();
         return;
       }
 
@@ -234,15 +255,7 @@ const HomePageContent = ({ onLogoutProp }) => {
       if (isMatchingHotkey(e) && recordingState === RECORDING_STATES.RECORDING) {
         e.preventDefault();
         console.log('⏹️ Stop key pressed, transitioning to TRANSCRIBING');
-        setRecordingState(RECORDING_STATES.TRANSCRIBING);
-        
-        // Don't await - fire and forget so UI doesn't hang
-        // The final transcript callback or 30s timeout will return to IDLE
-        stopRecording().catch(err => {
-          console.error('Error stopping recording:', err);
-          setRecordingState(RECORDING_STATES.IDLE);
-          setIsOverlayVisible(false);
-        });
+        stopRecordingFlow();
       }
     };
 
@@ -253,7 +266,7 @@ const HomePageContent = ({ onLogoutProp }) => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [settings, recordingState, startRecording, stopRecording, setRecordingState]);
+  }, [settings, recordingState, startRecordingFlow, stopRecordingFlow]);
 
   useEffect(() => {
     const handleVisibilityOrBlur = () => {
@@ -319,6 +332,51 @@ const HomePageContent = ({ onLogoutProp }) => {
         </small>
       </div>
 
+      <div
+        className={`mobile-recorder ${recordingState === RECORDING_STATES.RECORDING ? 'is-recording' : ''}`}
+        style={{ '--level': Math.max(0, Math.min(1, audioLevel)) }}
+      >
+        <div className="mobile-recorder-card">
+          <div className="mobile-recorder-info">
+            <div className="mobile-title">Quick Record</div>
+            <div className="mobile-subtitle">
+              {recordingState === RECORDING_STATES.RECORDING && 'Listening...'}
+              {recordingState === RECORDING_STATES.TRANSCRIBING && 'Transcribing...'}
+              {recordingState === RECORDING_STATES.TESTING && `Testing mic${micTestSecondsLeft > 0 ? ` • ${micTestSecondsLeft}s` : ''}`}
+              {recordingState === RECORDING_STATES.IDLE && 'Tap to start recording'}
+            </div>
+          </div>
+          <button
+            className={`mic-button ${recordingState === RECORDING_STATES.RECORDING ? 'active' : ''}`}
+            onClick={() => {
+              if (!settings?.deepgramApiKey) {
+                console.error('❌ Cannot start recording: No Deepgram API key configured');
+                return;
+              }
+
+              if (recordingState === RECORDING_STATES.IDLE) {
+                startRecordingFlow();
+                return;
+              }
+
+              stopRecordingFlow();
+            }}
+            disabled={recordingState === RECORDING_STATES.TRANSCRIBING}
+            title={recordingState === RECORDING_STATES.RECORDING ? 'Stop recording' : 'Start recording'}
+          >
+            <span className="mic-rings" aria-hidden="true">
+              <span className="ring ring-1" />
+              <span className="ring ring-2" />
+              <span className="ring ring-3" />
+            </span>
+            <span className="mic-core">🎤</span>
+            <span className="mic-label">
+              {recordingState === RECORDING_STATES.RECORDING ? 'Tap to stop' : 'Tap to speak'}
+            </span>
+          </button>
+        </div>
+      </div>
+
       <RecordingOverlay 
         isVisible={isOverlayVisible} 
         recordingState={recordingState}
@@ -326,12 +384,7 @@ const HomePageContent = ({ onLogoutProp }) => {
         micTestSecondsLeft={micTestSecondsLeft}
         onStop={() => {
           console.log('⏹️ Stop button pressed');
-          setRecordingState(RECORDING_STATES.TRANSCRIBING);
-          stopRecording().catch(err => {
-            console.error('Error stopping recording:', err);
-            setRecordingState(RECORDING_STATES.IDLE);
-            setIsOverlayVisible(false);
-          });
+          stopRecordingFlow();
         }}
       />
 
