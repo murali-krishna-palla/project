@@ -39,8 +39,6 @@ const HomePageContent = ({ onLogoutProp }) => {
     setInterimTranscript,
     settings,
     updateSettings,
-    fetchModels,
-    fetchGroqModelsData,
     userId
   } = appState;
 
@@ -181,7 +179,7 @@ const HomePageContent = ({ onLogoutProp }) => {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [recordingState]);
+  }, [recordingState, setRecordingState]);
 
   // Check permissions on component mount
   useEffect(() => {

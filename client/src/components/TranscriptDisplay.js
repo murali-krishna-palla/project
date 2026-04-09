@@ -10,7 +10,7 @@ const TranscriptDisplay = ({ interim, final, isProcessing, onSave, saveStatus, i
 
   const handleCopyToClipboard = async (text) => {
     if (!text) return;
-    const success = await TextInjectorService.injectText(
+    await TextInjectorService.injectText(
       text,
       (msg) => {
         setCopyStatus(msg);

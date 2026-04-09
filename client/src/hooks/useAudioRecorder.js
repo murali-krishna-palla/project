@@ -9,11 +9,11 @@ import AudioResampler from '../utils/audioResampler';
  */
 export const useAudioRecorder = (onTranscript) => {
   const DEBUG = false;
-  const debugLog = (...args) => {
+  const debugLog = useCallback((...args) => {
     if (DEBUG) {
       console.log(...args);
     }
-  };
+  }, [DEBUG]);
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState(null);
   const [audioLevel, setAudioLevel] = useState(0);
@@ -361,7 +361,7 @@ export const useAudioRecorder = (onTranscript) => {
       setIsRecording(false);
       setAudioLevel(0);
     }
-  }, [onTranscript]);
+  }, [onTranscript, debugLog]);
 
   const stopRecording = useCallback(async () => {
     return new Promise((resolve) => {
@@ -481,7 +481,7 @@ export const useAudioRecorder = (onTranscript) => {
         resolve();
       }
     });
-  }, []);
+  }, [DEBUG, cleanupAudioContext, debugLog]);
 
   // Helper function to safely close audio context
   const cleanupAudioContext = useCallback(() => {
@@ -495,7 +495,7 @@ export const useAudioRecorder = (onTranscript) => {
         audioContextRef.current = null;
       }
     }
-  }, []);
+  }, [debugLog]);
 
   return {
     isRecording,
